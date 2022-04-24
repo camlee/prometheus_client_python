@@ -29,6 +29,10 @@ def assert_not_observable(fn, *args, **kwargs):
     assert False, "Did not raise a 'missing label values' exception"
 
 
+def assert_between(lower, value, upper, msg=""):
+    assert lower <= value <= upper, "%s is not between %s and %s%s" % (value, lower, upper, " : %s" % msg if msg else "")
+
+
 class TestCounter(aiounittest.AsyncTestCase):
     def setUp(self):
         self.registry = CollectorRegistry()
@@ -215,7 +219,7 @@ class TestGauge(aiounittest.AsyncTestCase):
         self.assertEqual(([], None, None, None), getargspec(f))
 
         f()
-        self.assertTrue(0.05 <= self.registry.get_sample_value('g') <= 0.1)
+        assert_between(0.05, self.registry.get_sample_value('g'), 0.1)
 
     async def test_time_async_function_decorator(self):
         self.assertEqual(0, self.registry.get_sample_value('g'))
@@ -227,7 +231,7 @@ class TestGauge(aiounittest.AsyncTestCase):
         self.assertEqual(([], None, None, None), getargspec(f))
 
         await f()
-        self.assertTrue(0.05 <= self.registry.get_sample_value('g') <= 0.1)
+        assert_between(0.05, self.registry.get_sample_value('g'), 0.1)
 
     def test_function_decorator_multithread(self):
         self.assertEqual(0, self.registry.get_sample_value('g'))
@@ -307,7 +311,7 @@ class TestSummary(aiounittest.AsyncTestCase):
 
         f()
         self.assertEqual(1, self.registry.get_sample_value('s_count'))
-        self.assertTrue(.05 < self.registry.get_sample_value('s_sum') < 0.1)
+        assert_between(.05, self.registry.get_sample_value('s_sum'), 0.1)
 
     async def test_async_function_decorator(self):
         self.assertEqual(0, self.registry.get_sample_value('s_count'))
@@ -320,7 +324,7 @@ class TestSummary(aiounittest.AsyncTestCase):
 
         await f()
         self.assertEqual(1, self.registry.get_sample_value('s_count'))
-        self.assertTrue(.05 < self.registry.get_sample_value('s_sum') < 0.1)
+        assert_between(.05, self.registry.get_sample_value('s_sum'), 0.1)
 
     def test_function_decorator_multithread(self):
         self.assertEqual(0, self.registry.get_sample_value('s_count'))
@@ -475,7 +479,7 @@ class TestHistogram(aiounittest.AsyncTestCase):
         f()
         self.assertEqual(1, self.registry.get_sample_value('h_count'))
         self.assertEqual(1, self.registry.get_sample_value('h_bucket', {'le': '+Inf'}))
-        self.assertTrue(.05 < self.registry.get_sample_value('h_sum') < 0.1)
+        assert_between(.05, self.registry.get_sample_value('h_sum'), 0.1)
 
     async def test_async_function_decorator(self):
         self.assertEqual(0, self.registry.get_sample_value('h_count'))
@@ -490,7 +494,7 @@ class TestHistogram(aiounittest.AsyncTestCase):
         await f()
         self.assertEqual(1, self.registry.get_sample_value('h_count'))
         self.assertEqual(1, self.registry.get_sample_value('h_bucket', {'le': '+Inf'}))
-        self.assertTrue(.05 < self.registry.get_sample_value('h_sum') < 0.1)
+        assert_between(.05, self.registry.get_sample_value('h_sum'), 0.1)
 
     def test_function_decorator_multithread(self):
         self.assertEqual(0, self.registry.get_sample_value('h_count'))

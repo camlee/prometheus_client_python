@@ -2,6 +2,7 @@ import sys
 from timeit import default_timer
 from types import TracebackType
 from typing import Any, Callable, Optional, Type, TYPE_CHECKING, TypeVar
+from inspect import iscoroutinefunction
 
 if sys.version_info >= (3, 8, 0):
     from typing import Literal
@@ -26,10 +27,16 @@ class ExceptionCounter:
             self._counter.inc()
         return False
 
+
     def __call__(self, f: "F") -> "F":
-        def wrapped(func, *args, **kwargs):
-            with self:
-                return func(*args, **kwargs)
+        if iscoroutinefunction(f):
+            async def wrapped(func, *args, **kwargs):
+                with self:
+                    return await func(*args, **kwargs)
+        else:
+            def wrapped(func, *args, **kwargs):
+                with self:
+                    return func(*args, **kwargs)
 
         return decorate(f, wrapped)
 
@@ -45,9 +52,14 @@ class InprogressTracker:
         self._gauge.dec()
 
     def __call__(self, f):
-        def wrapped(func, *args, **kwargs):
-            with self:
-                return func(*args, **kwargs)
+        if iscoroutinefunction(f):
+            async def wrapped(func, *args, **kwargs):
+                with self:
+                    return await func(*args, **kwargs)
+        else:
+            def wrapped(func, *args, **kwargs):
+                with self:
+                    return func(*args, **kwargs)
 
         return decorate(f, wrapped)
 
@@ -74,10 +86,17 @@ class Timer:
         self._metric = self._metric.labels(*args, **kw)
 
     def __call__(self, f):
-        def wrapped(func, *args, **kwargs):
-            # Obtaining new instance of timer every time
-            # ensures thread safety and reentrancy.
-            with self._new_timer():
-                return func(*args, **kwargs)
+        if iscoroutinefunction(f):
+            # If an async function was decorated, we support that by
+            # producing an async function and awaiting the original.
+            async def wrapped(func, *args, **kwargs):
+                with self._new_timer():
+                    return await func(*args, **kwargs)
+        else:
+            def wrapped(func, *args, **kwargs):
+                # Obtaining new instance of timer every time
+                # ensures thread safety and reentrancy.
+                with self._new_timer():
+                    return func(*args, **kwargs)
 
         return decorate(f, wrapped)
